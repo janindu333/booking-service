@@ -1,6 +1,7 @@
 package com.baber.bookingservice.model;
 
 
+import com.fasterxml.jackson.annotation.JsonBackReference;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
@@ -13,13 +14,12 @@ import lombok.Setter;
 @Setter
 @AllArgsConstructor
 @NoArgsConstructor
-public class AppointmentServiceId {
-
-
-    @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
-    private Long appointmentId;
+public class AppointmentServiceId extends Base{
     private Long saloonServiceId;
+
+    @ManyToOne
+    @JoinColumn(name = "appointment_id") // Specifies the foreign key column name
+    @JsonBackReference
+    private Appointment appointment;
 
 }
