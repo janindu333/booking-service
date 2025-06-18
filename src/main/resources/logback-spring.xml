@@ -1,7 +1,8 @@
 <configuration>
     <!-- Logstash TCP Socket Appender -->
     <appender name="stash" class="net.logstash.logback.appender.LogstashTcpSocketAppender">
-        <destination>localhost:5000</destination>
+<!--        <destination>localhost:5000</destination>-->
+        <destination>logstash.default.svc.cluster.local:5000</destination>
         <encoder class="net.logstash.logback.encoder.LoggingEventCompositeJsonEncoder">
             <providers>
                 <timestamp />

@@ -17,6 +17,9 @@ spec:
           image: janindu3/booking-service:latest  # Updated image path
           ports:
             - containerPort: 8084
+          env:
+            - name: SPRING_ZIPKIN_BASE_URL
+              value: "http://zipkin.default.svc.cluster.local:9411"
 ---
 apiVersion: v1
 kind: Service
