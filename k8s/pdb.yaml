@@ -1,0 +1,10 @@
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: booking-service
+  namespace: saloon-system
+spec:
+  minAvailable: 1
+  selector:
+    matchLabels:
+      app: booking-service

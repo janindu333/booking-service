@@ -8,6 +8,7 @@ import com.baber.bookingservice.dto.PopularTimeSlotDTO;
 import com.baber.bookingservice.dto.RevenueReportDTO;
 import com.baber.bookingservice.dto.TimeSlotDTO;
 import com.baber.bookingservice.dto.AppointmentGetAllDTO;
+import com.baber.bookingservice.dto.AppointmentWithPaymentDTO;
 import com.baber.bookingservice.model.Appointment;
 import com.baber.bookingservice.service.AppointmentService;
 import io.github.resilience4j.circuitbreaker.annotation.CircuitBreaker;
@@ -26,6 +27,7 @@ import java.time.LocalDate;
 import java.time.LocalTime;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
+import java.util.Map;
 
 @RestController
 @RequestMapping("/api/appointment")
@@ -41,17 +43,44 @@ public class AppointmentController {
     }
     
     @PostMapping("/create")
-    @Operation(summary = "Create a new appointment", description = "Creates a new appointment and sends notification via Kafka")
-    public BaseResponse<String> createAppointment(@RequestBody AppointmentCreateDTO appointmentCreateDTO) {
-        // Set the userId from the authenticated user if not provided in DTO
-        if (appointmentCreateDTO.getUserId() == null && userContext.getUserId() != null) {
-            appointmentCreateDTO.setUserId(userContext.getUserId());
+    @Operation(summary = "Create a new appointment", description = "Creates a new appointment with payment-first approach and sends notification via Kafka")
+    public BaseResponse<AppointmentWithPaymentDTO> createAppointment(@RequestBody AppointmentCreateDTO appointmentCreateDTO) {
+        try {
+            // Set the userId from the authenticated user if not provided in DTO
+            if (appointmentCreateDTO.getUserId() == null && userContext.getUserId() != null) {
+                appointmentCreateDTO.setUserId(userContext.getUserId());
+            }
+            
+            AppointmentWithPaymentDTO result = appointmentService.createAppointment(appointmentCreateDTO);
+            return new BaseResponse<>(true, "Appointment reserved successfully", 0, "", result);
+            
+        } catch (IllegalArgumentException e) {
+            // Validation errors
+            return new BaseResponse<>(false, e.getMessage(), 400, "VALIDATION_ERROR", null);
+        } catch (RuntimeException e) {
+            // Business logic errors (availability, payment intent failure)
+            return new BaseResponse<>(false, e.getMessage(), 400, "BUSINESS_ERROR", null);
+        } catch (Exception e) {
+            // Unexpected errors
+            return new BaseResponse<>(false, "Failed to create appointment", 500, "INTERNAL_ERROR", null);
         }
-        
-        appointmentService.createAppointment(appointmentCreateDTO);
-        return new BaseResponse<>(true, "success", 0, "", null);
     }
     
+    @PostMapping("/{appointmentId}/confirm-payment")
+    @Operation(summary = "Confirm payment for appointment", description = "Confirms payment and updates appointment status to CONFIRMED")
+    public BaseResponse<AppointmentWithPaymentDTO> confirmPayment(@PathVariable Long appointmentId) {
+        try {
+            AppointmentWithPaymentDTO result = appointmentService.confirmPayment(appointmentId);
+            return new BaseResponse<>(true, "Payment confirmed successfully", 0, "", result);
+        } catch (IllegalArgumentException e) {
+            return new BaseResponse<>(false, e.getMessage(), 400, "VALIDATION_ERROR", null);
+        } catch (RuntimeException e) {
+            return new BaseResponse<>(false, e.getMessage(), 400, "BUSINESS_ERROR", null);
+        } catch (Exception e) {
+            return new BaseResponse<>(false, "Failed to confirm payment", 500, "INTERNAL_ERROR", null);
+        }
+    }
+
     @GetMapping("/getAppointmentByUserId/{uId}")
     @Operation(summary = "Get appointments by user ID", description = "Retrieves all appointments for a specific user")
     public BaseResponse<List<Appointment>> getAppointmentByUserId(
@@ -104,6 +133,32 @@ public class AppointmentController {
         
         return new BaseResponse<>(true, "success", 0, "",
                 appointmentService.getAppointmentsBySaloonId(saloonId));
+    }
+
+    // Get client count by saloon (Admin only)
+    @GetMapping("/clients/count/bySaloon/{saloonId}")
+    @Operation(summary = "Get client count by saloon", description = "Returns the total number of unique clients who have made appointments at a specific saloon")
+    public BaseResponse<Long> getClientCountBySaloon(
+            @Parameter(description = "Saloon ID", example = "1") @PathVariable Long saloonId) {
+        if (!userContext.isAdmin()) {
+            return new BaseResponse<>(false, "Access denied. Admin role required.", 403, "", null);
+        }
+        
+        long count = appointmentService.getClientCountBySaloonId(saloonId);
+        return new BaseResponse<>(true, "success", 0, "", count);
+    }
+
+    // Get treatment count (completed appointments) by saloon (Admin only)
+    @GetMapping("/treatments/count/bySaloon/{saloonId}")
+    @Operation(summary = "Get treatment count by saloon", description = "Returns the total number of completed appointments (treatments) for a specific saloon")
+    public BaseResponse<Long> getTreatmentCountBySaloon(
+            @Parameter(description = "Saloon ID", example = "1") @PathVariable Long saloonId) {
+        if (!userContext.isAdmin()) {
+            return new BaseResponse<>(false, "Access denied. Admin role required.", 403, "", null);
+        }
+        
+        long count = appointmentService.getTreatmentCountBySaloonId(saloonId);
+        return new BaseResponse<>(true, "success", 0, "", count);
     }
 
     // Get appointments by specialist (Admin only)
@@ -214,6 +269,38 @@ public class AppointmentController {
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date) {
         return new BaseResponse<>(true, "success", 0, "",
                 appointmentService.getSaloonAvailability(saloonId, date));
+    }
+
+    @GetMapping("/available-slots")
+    @Operation(summary = "Get available time slots", description = "Retrieves available time slots for a specific date, specialist, and saloon")
+    public BaseResponse<List<TimeSlotDTO>> getAvailableTimeSlots(
+            @RequestParam Long saloonId,
+            @RequestParam Long specialistId,
+            @RequestParam String date) {
+        try {
+            List<TimeSlotDTO> availableSlots = appointmentService.getAvailableTimeSlots(saloonId, specialistId, date);
+            return new BaseResponse<>(true, "Available slots retrieved successfully", 0, "", availableSlots);
+        } catch (IllegalArgumentException e) {
+            return new BaseResponse<>(false, e.getMessage(), 400, "VALIDATION_ERROR", null);
+        } catch (Exception e) {
+            return new BaseResponse<>(false, "Failed to retrieve available slots", 500, "INTERNAL_ERROR", null);
+        }
+    }
+
+    @GetMapping("/available-slots/week")
+    @Operation(summary = "Get available time slots for a week", description = "Retrieves available time slots for a week starting from a specific date")
+    public BaseResponse<Map<String, List<TimeSlotDTO>>> getAvailableTimeSlotsForWeek(
+            @RequestParam Long saloonId,
+            @RequestParam Long specialistId,
+            @RequestParam String startDate) {
+        try {
+            Map<String, List<TimeSlotDTO>> weeklySlots = appointmentService.getAvailableTimeSlotsForWeek(saloonId, specialistId, startDate);
+            return new BaseResponse<>(true, "Weekly available slots retrieved successfully", 0, "", weeklySlots);
+        } catch (IllegalArgumentException e) {
+            return new BaseResponse<>(false, e.getMessage(), 400, "VALIDATION_ERROR", null);
+        } catch (Exception e) {
+            return new BaseResponse<>(false, "Failed to retrieve weekly available slots", 500, "INTERNAL_ERROR", null);
+        }
     }
 
     // Confirm appointment
@@ -374,6 +461,23 @@ public class AppointmentController {
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.TIME) LocalTime time) {
         boolean isAvailable = appointmentService.checkAvailability(saloonId, specialistId, date, time);
         return new BaseResponse<>(true, "success", 0, "", isAvailable);
+    }
+
+    @GetMapping("/check-availability")
+    @Operation(summary = "Check specific time slot availability", description = "Quick check if a specific time slot is available for booking")
+    public BaseResponse<TimeSlotDTO> checkSpecificSlotAvailability(
+            @RequestParam Long saloonId,
+            @RequestParam Long specialistId,
+            @RequestParam String date,
+            @RequestParam String time) {
+        try {
+            TimeSlotDTO slotAvailability = appointmentService.checkSpecificSlotAvailability(saloonId, specialistId, date, time);
+            return new BaseResponse<>(true, "Slot availability checked successfully", 0, "", slotAvailability);
+        } catch (IllegalArgumentException e) {
+            return new BaseResponse<>(false, e.getMessage(), 400, "VALIDATION_ERROR", null);
+        } catch (Exception e) {
+            return new BaseResponse<>(false, "Failed to check slot availability", 500, "INTERNAL_ERROR", null);
+        }
     }
 
 //    @GetMapping("/test")

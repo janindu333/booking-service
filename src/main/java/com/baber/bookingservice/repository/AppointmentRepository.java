@@ -74,6 +74,14 @@ public interface AppointmentRepository extends JpaRepository<Appointment, Long> 
                                      @Param("startDate") LocalDate startDate, 
                                      @Param("endDate") LocalDate endDate);
 
+    // Count distinct clients by saloon
+    @Query("SELECT COUNT(DISTINCT a.userId) FROM Appointment a WHERE a.saloonId = :saloonId")
+    long countDistinctClientsBySaloonId(@Param("saloonId") Long saloonId);
+
+    // Count completed appointments (treatments) by saloon
+    @Query("SELECT COUNT(a) FROM Appointment a WHERE a.saloonId = :saloonId AND a.status = :status")
+    long countBySaloonIdAndStatus(@Param("saloonId") Long saloonId, @Param("status") String status);
+
     // Get popular time slots by saloon
     @Query("SELECT a.time, COUNT(a) as count FROM Appointment a WHERE a.saloonId = :saloonId GROUP BY a.time ORDER BY count DESC")
     List<Object[]> getPopularTimeSlotsBySaloonId(@Param("saloonId") Long saloonId);
@@ -83,5 +91,18 @@ public interface AppointmentRepository extends JpaRepository<Appointment, Long> 
     List<Appointment> getAppointmentsByStatusAndDateRange(@Param("status") String status,
                                                           @Param("startDate") LocalDate startDate,
                                                           @Param("endDate") LocalDate endDate);
+
+    // Check for appointment conflicts by specialist, date, and time range
+    @Query("SELECT a FROM Appointment a WHERE a.specialistId = :specialistId AND a.date = :date AND a.time BETWEEN :startTime AND :endTime")
+    List<Appointment> findBySpecialistIdAndDateAndTimeBetween(@Param("specialistId") Long specialistId,
+                                                              @Param("date") String date,
+                                                              @Param("startTime") String startTime,
+                                                              @Param("endTime") String endTime);
+
+    // Find appointments by status
+    List<Appointment> findByStatus(String status);
+
+    // Find appointments by specialist and date
+    List<Appointment> findBySpecialistIdAndDate(Long specialistId, LocalDate date);
 }
 
