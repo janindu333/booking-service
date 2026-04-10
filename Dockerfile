@@ -10,5 +10,6 @@ COPY target/booking-service-0.0.1-SNAPSHOT.jar app.jar
 # Expose the port that the application will run on
 EXPOSE 8084
 
-# Command to run the application
-ENTRYPOINT ["java", "-jar", "app.jar", "--spring.profiles.active=docker"]
+# Default profile for local `docker run`; Kubernetes overrides with SPRING_PROFILES_ACTIVE=k8s
+ENV SPRING_PROFILES_ACTIVE=docker
+ENTRYPOINT ["java", "-jar", "app.jar"]
