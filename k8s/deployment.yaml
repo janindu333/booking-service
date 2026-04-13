@@ -27,3 +27,25 @@ spec:
               value: "k8s"
             - name: SPRING_ZIPKIN_BASE_URL
               value: "http://zipkin:9411"
+            - name: DB_USERNAME
+              valueFrom:
+                secretKeyRef:
+                  name: saloon-secrets
+                  key: db-username
+            - name: DB_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: saloon-secrets
+                  key: db-password
+            - name: JWT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: saloon-secrets
+                  key: jwt-secret
+          resources:
+            requests:
+              cpu: "200m"
+              memory: "256Mi"
+            limits:
+              cpu: "500m"
+              memory: "512Mi"
