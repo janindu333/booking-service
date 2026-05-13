@@ -25,18 +25,21 @@ spec:
           env:
             - name: SPRING_PROFILES_ACTIVE
               value: "k8s"
+            - name: API_GATEWAY_URL
+              value: "/"
             - name: SPRING_ZIPKIN_BASE_URL
               value: "http://zipkin:9411"
             - name: DB_USERNAME
-              valueFrom:
-                secretKeyRef:
-                  name: saloon-secrets
-                  key: db-username
+              value: "saloon_user"
             - name: DB_PASSWORD
               valueFrom:
                 secretKeyRef:
                   name: saloon-secrets
                   key: db-password
+            - name: DB_NAME
+              value: "saloon_service"
+            - name: DB_HOST
+              value: "mysql-service"
             - name: JWT_SECRET
               valueFrom:
                 secretKeyRef:

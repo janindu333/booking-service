@@ -14,7 +14,7 @@ import java.util.List;
 @Configuration
 public class SwaggerConfig {
 
-    @Value("${api.gateway.url:http://localhost:8080}")
+    @Value("${api.gateway.url:/}")
     private String apiGatewayUrl;
 
     @Bean
