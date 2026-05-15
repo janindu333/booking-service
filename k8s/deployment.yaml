@@ -45,6 +45,8 @@ spec:
                 secretKeyRef:
                   name: saloon-secrets
                   key: jwt-secret
+            - name: IDENTITY_SERVICE_URL
+              value: "http://identity-service:8082"
           resources:
             requests:
               cpu: "200m"

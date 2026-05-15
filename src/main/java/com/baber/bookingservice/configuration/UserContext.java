@@ -50,7 +50,15 @@ public class UserContext {
     }
 
     public boolean isAdmin() {
-        return "Administrator".equals(role) || "Manager".equals(role);
+        if (role == null || role.isBlank()) {
+            return false;
+        }
+        String r = role.trim();
+        return "Administrator".equalsIgnoreCase(r)
+                || "Manager".equalsIgnoreCase(r)
+                || "admin".equalsIgnoreCase(r)
+                || "super_admin".equalsIgnoreCase(r)
+                || "owner".equalsIgnoreCase(r);
     }
 
     public boolean isStaff() {

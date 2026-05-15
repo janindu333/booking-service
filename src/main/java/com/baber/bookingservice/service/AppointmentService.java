@@ -207,6 +207,31 @@ public class AppointmentService {
         return appointmentRepository.getAppointmentsBySaloonIdAndDateRange(saloonId, startDate, endDate);
     }
 
+    public List<Appointment> getAppointmentsForDate(Long saloonId, LocalDate date, int limit) {
+        List<Appointment> appointments;
+        if (saloonId != null) {
+            appointments = new ArrayList<>(appointmentRepository.getAppointmentsBySaloonIdAndDate(saloonId, date));
+        } else {
+            appointments = new ArrayList<>(appointmentRepository.getAppointmentsByDateRange(date, date));
+        }
+        appointments.sort((a, b) -> {
+            if (a.getTime() == null && b.getTime() == null) {
+                return 0;
+            }
+            if (a.getTime() == null) {
+                return 1;
+            }
+            if (b.getTime() == null) {
+                return -1;
+            }
+            return a.getTime().compareTo(b.getTime());
+        });
+        if (limit > 0 && appointments.size() > limit) {
+            return appointments.subList(0, limit);
+        }
+        return appointments;
+    }
+
     // Get client count by saloon
     public long getClientCountBySaloonId(Long saloonId) {
         return appointmentRepository.countDistinctClientsBySaloonId(saloonId);

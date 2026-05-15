@@ -1,5 +1,6 @@
 package com.baber.bookingservice.controller;
 
+import com.baber.bookingservice.client.SaloonResolverClient;
 import com.baber.bookingservice.configuration.UserContext;
 import com.baber.bookingservice.dto.AppointmentCreateDTO;
 import com.baber.bookingservice.dto.AppointmentStatsDTO;
@@ -37,9 +38,16 @@ public class AppointmentController {
     
     @Autowired
     private UserContext userContext;
+
+    @Autowired
+    private SaloonResolverClient saloonResolverClient;
     
     public AppointmentController(AppointmentService appointmentService) {
         this.appointmentService = appointmentService;
+    }
+
+    private Long resolveSaloonId(String saloonIdOrPublicId) {
+        return saloonResolverClient.resolve(saloonIdOrPublicId);
     }
     
     @PostMapping("/create")
@@ -126,39 +134,48 @@ public class AppointmentController {
     @GetMapping("/getBySaloon/{saloonId}")
     @Operation(summary = "Get appointments by saloon", description = "Retrieves all appointments for a specific saloon")
     public BaseResponse<List<Appointment>> getAppointmentsBySaloon(
-            @Parameter(description = "Saloon ID", example = "1") @PathVariable Long saloonId) {
+            @Parameter(description = "Saloon ID (numeric or public UUID)", example = "1") @PathVariable String saloonId) {
         if (!userContext.isAdmin()) {
             return new BaseResponse<>(false, "Access denied. Admin role required.", 403, "", null);
         }
-        
-        return new BaseResponse<>(true, "success", 0, "",
-                appointmentService.getAppointmentsBySaloonId(saloonId));
+        try {
+            return new BaseResponse<>(true, "success", 0, "",
+                    appointmentService.getAppointmentsBySaloonId(resolveSaloonId(saloonId)));
+        } catch (IllegalArgumentException e) {
+            return new BaseResponse<>(false, e.getMessage(), 400, "", null);
+        }
     }
 
     // Get client count by saloon (Admin only)
     @GetMapping("/clients/count/bySaloon/{saloonId}")
     @Operation(summary = "Get client count by saloon", description = "Returns the total number of unique clients who have made appointments at a specific saloon")
     public BaseResponse<Long> getClientCountBySaloon(
-            @Parameter(description = "Saloon ID", example = "1") @PathVariable Long saloonId) {
+            @Parameter(description = "Saloon ID (numeric or public UUID)", example = "1") @PathVariable String saloonId) {
         if (!userContext.isAdmin()) {
             return new BaseResponse<>(false, "Access denied. Admin role required.", 403, "", null);
         }
-        
-        long count = appointmentService.getClientCountBySaloonId(saloonId);
-        return new BaseResponse<>(true, "success", 0, "", count);
+        try {
+            long count = appointmentService.getClientCountBySaloonId(resolveSaloonId(saloonId));
+            return new BaseResponse<>(true, "success", 0, "", count);
+        } catch (IllegalArgumentException e) {
+            return new BaseResponse<>(false, e.getMessage(), 400, "", null);
+        }
     }
 
     // Get treatment count (completed appointments) by saloon (Admin only)
     @GetMapping("/treatments/count/bySaloon/{saloonId}")
     @Operation(summary = "Get treatment count by saloon", description = "Returns the total number of completed appointments (treatments) for a specific saloon")
     public BaseResponse<Long> getTreatmentCountBySaloon(
-            @Parameter(description = "Saloon ID", example = "1") @PathVariable Long saloonId) {
+            @Parameter(description = "Saloon ID (numeric or public UUID)", example = "1") @PathVariable String saloonId) {
         if (!userContext.isAdmin()) {
             return new BaseResponse<>(false, "Access denied. Admin role required.", 403, "", null);
         }
-        
-        long count = appointmentService.getTreatmentCountBySaloonId(saloonId);
-        return new BaseResponse<>(true, "success", 0, "", count);
+        try {
+            long count = appointmentService.getTreatmentCountBySaloonId(resolveSaloonId(saloonId));
+            return new BaseResponse<>(true, "success", 0, "", count);
+        } catch (IllegalArgumentException e) {
+            return new BaseResponse<>(false, e.getMessage(), 400, "", null);
+        }
     }
 
     // Get appointments by specialist (Admin only)
