@@ -27,8 +27,10 @@ spec:
               value: "k8s"
             - name: API_GATEWAY_URL
               value: "/"
-            - name: SPRING_ZIPKIN_BASE_URL
-              value: "http://zipkin:9411"
+            - name: MANAGEMENT_OTLP_TRACING_ENDPOINT
+              value: "http://tempo.observability.svc.cluster.local:4318/v1/traces"
+            - name: MANAGEMENT_TRACING_PROPAGATION_TYPE
+              value: "w3c"
             - name: DB_USERNAME
               value: "saloon_user"
             - name: DB_PASSWORD
