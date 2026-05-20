@@ -1,14 +1,14 @@
-# Use an official Java runtime as a parent image
-FROM openjdk:21-jdk-slim
+FROM maven:3.9-eclipse-temurin-21 AS builder
+WORKDIR /build
+COPY pom.xml .
+COPY src ./src
+RUN mvn -DskipTests clean package
 
-# Set the working directory inside the container
+FROM eclipse-temurin:21-jre-jammy
 WORKDIR /app
+COPY --from=builder /build/target/booking-service-0.0.1-SNAPSHOT.jar app.jar
 
-# Copy the application JAR file into the container
-COPY target/booking-service-0.0.1-SNAPSHOT.jar app.jar
-
-# Expose the port that the application will run on
 EXPOSE 8084
 
-# Command to run the application
-ENTRYPOINT ["java", "-jar", "app.jar", "--spring.profiles.active=docker"]
+ENV SPRING_PROFILES_ACTIVE=docker
+ENTRYPOINT ["java", "-jar", "app.jar"]
